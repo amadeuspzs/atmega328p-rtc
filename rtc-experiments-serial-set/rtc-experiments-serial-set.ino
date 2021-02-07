@@ -15,6 +15,7 @@ void setup() {
   ASSR |= (1<<AS2); //set Timer/counter2 to be asynchronous from the CPU clock
   TCNT2 = 0; // reset Timer/counter2
   TCCR2B = (1<<CS00)|(1<<CS02); //Prescale the timer to be clock source/128
+  while (ASSR & ((1<<TCN2UB)|(1<<OCR2AUB)|(1<<TCR2AUB)));  //Wait until TC2 is updated
   TIMSK2 |= (1<<TOIE2); // enable overflow interrupt
   sei(); // enable interrupts
   Serial.begin(9600);
