@@ -11,28 +11,16 @@ time t;
 
 char timestamp[14]; // YYYYMMDDHHMMSS from serial input
 
-int led = 19;
-
 void setup() {
-  pinMode(led, OUTPUT);
-
   ASSR |= (1<<AS2); //set Timer/counter2 to be asynchronous from the CPU clock
   TCNT2 = 0; // reset Timer/counter2
   TCCR2B = (1<<CS00)|(1<<CS02); //Prescale the timer to be clock source/128
-//  TCCR2B |= (1<<CS22); //Prescale the timer to be clock source/128
   TIMSK2 |= (1<<TOIE2); // enable overflow interrupt
   sei(); // enable interrupts
-  set_sleep_mode(SLEEP_MODE_PWR_SAVE);          //Selecting power save mode as the sleep mode to be used
-  sleep_enable();                     //Enabling sleep mode
   Serial.begin(9600);
 }
 
 void loop() {
-//  while(1) {
-//    sleep_mode();
-//    digitalWrite(led, HIGH);
-//    delay(100);
-//    digitalWrite(led, LOW);
   if (Serial.available() > 0) {
     // read the incoming byte:
     char incomingByte = Serial.read();
@@ -58,8 +46,6 @@ void loop() {
       Serial.println("Command not recognised.\n\ns(et) or r(read)?");
     }
   } // end if serial available
-  
-//  }
 }
 
 void printTimestamp() {
