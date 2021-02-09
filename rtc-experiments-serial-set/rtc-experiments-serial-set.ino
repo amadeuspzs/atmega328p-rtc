@@ -7,16 +7,25 @@ typedef struct{
   unsigned int year;
 } time;
   
-time t;
+volatile time t;
 
 char timestamp[14]; // YYYYMMDDHHMMSS from serial input
+char timeOnly[6]; // HHMMSS
 
 void setup() {
-  ASSR |= (1<<AS2); //set Timer/counter2 to be asynchronous from the CPU clock
-  TCNT2 = 0; // reset Timer/counter2
-  TCCR2B = (1<<CS00)|(1<<CS02); //Prescale the timer to be clock source/128
-  while (ASSR & ((1<<TCN2UB)|(1<<OCR2AUB)|(1<<TCR2AUB)));  //Wait until TC2 is updated
-  TIMSK2 |= (1<<TOIE2); // enable overflow interrupt
+  delay(1000); // allow crystal to stabilise
+
+  TCCR2B = 0;  //stop Timer 2
+  TIMSK2 = 0;  // disable Timer 2 interrupts
+  ASSR = (1<<AS2);  // select asynchronous operation of Timer2
+  TCNT2 = 0;      // clear Timer 2 counter
+  TCCR2A = 0;     //normal count up mode, no port output
+  TCCR2B = (1<<CS22) | (1<<CS20);   // select prescaler 128 => 1 sec between each overflow
+
+  while (ASSR & ((1<<TCN2UB)|(1<<TCR2BUB))); // wait for TCN2UB and TCR2BUB to clear
+
+  TIFR2 = 0xFF;     // clear all interrupt flags
+  TIMSK2 = (1<<TOIE2);  // enable Timer2 overflow interrupt
   sei(); // enable interrupts
   Serial.begin(9600);
 }
@@ -26,8 +35,8 @@ void loop() {
     // read the incoming byte:
     char incomingByte = Serial.read();
 
-    if (incomingByte == 115) { // s(et) mode
-      Serial.println("Enter timestamp: YYYYMMDDHHSS");
+    if (incomingByte == 115) { // s(et) timestamp mode
+      Serial.println("Enter timestamp: YYYYMMDDHHMMSS");
 
       while (Serial.available() < 14); // wait for serial input
       for (int i=0; i<14; i++) {
@@ -38,13 +47,24 @@ void loop() {
       t.date = 10 * (timestamp[6] - '0') + (timestamp[7] - '0');
       t.hour = 10 * (timestamp[8] - '0') + (timestamp[9] - '0');
       t.minute = 10 * (timestamp[10] - '0') + (timestamp[11] - '0');
+      TCNT2 = 0; // reset Timer/counter2
       t.second = 10 * (timestamp[12] - '0') + (timestamp[13] - '0');
+      printTimestamp();
+    } else if (incomingByte == 99) { // c(lock) set mode
+      Serial.println("Enter clock time: HHMMSS");
+      while (Serial.available() < 6); // wait for serial input
+      for (int i=0; i<6; i++) {
+        timeOnly[i] = Serial.read();
+      }
+      t.hour = 10 * (timeOnly[0] - '0') + (timeOnly[1] - '0');
+      t.minute = 10 * (timeOnly[2] - '0') + (timeOnly[3] - '0');
+      t.second = 10 * (timeOnly[4] - '0') + (timeOnly[5] - '0');
       TCNT2 = 0; // reset Timer/counter2
       printTimestamp();
     } else if (incomingByte == 114) { // r(ead) mode
       printTimestamp();
     } else {
-      Serial.println("Command not recognised.\n\ns(et) or r(read)?");
+      Serial.println("Command not recognised.\n\ns(et timestamp), c(lock set) or r(read)?");
     }
   } // end if serial available
 }
